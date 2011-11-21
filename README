@@ -1,5 +1,7 @@
-这是我做的一个分析 ACMI 文件的项目，统计一些有意义的信息
+分析 *.txt.acmi 文件，这些文件由 Tacview 软件生成，
+录制了模拟飞行游戏 Lockon 中物体的轨迹信息。
+计算并统计一些有意义的信息
 项目包括了一简陋的 GUI 图形界面模块和一个数据分析模块
 使用了 python 语言和 pyqt 图形库
-文件格式见下面链接
+文件格式见下面链接：
 http://lomac.strasoftware.com/tacview-flight-recordings.php
