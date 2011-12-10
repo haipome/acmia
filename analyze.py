@@ -5,7 +5,7 @@ from math import sin, cos, asin, acos, sqrt
 import sys
 
 dataTypeKey = [
-		u'发射导弹时载机与目标机的角度关系',
+		u'发射导弹时载机与目标机的角度关系（度）',
 		u'发射导弹时载机与目标机的高度差（米）',
 		u'发射导弹时载机真空速度（千米每小时）',
 		u'发射导弹时目标机真空速度（千米每小时）',
@@ -13,21 +13,21 @@ dataTypeKey = [
 		u'发射导弹时目标机马赫数',
 		u'发射导弹时载机过载 (g)',
 		u'发射导弹时目标机过载 (g)',
-		u'发射导弹时载机攻角',
-		u'发射导弹时目标机攻角',
+		u'发射导弹时载机俯仰角（度）',
+		u'发射导弹时目标机俯仰角（度）',
 		u'发射导弹时载机与目标机距离关系（千米）',
 		u'空',
-		u'发射导弹时载机滚转角',
-		u'发射导弹时目标机滚转角',
+		u'发射导弹时载机滚转角（度）',
+		u'发射导弹时目标机滚转角（度）',
 		u'导弹命中时目标机速度（千米每小时）',
 		u'导弹命中时目标机高度（米）',
-		u'导弹命中时目标机与载机角度关系',
+		u'导弹命中时目标机与载机角度关系（度）',
 		u'导弹命中时目标机与载机高度关系（米）',
 		u'导弹命中时目标机与载机距离关系（千米）',
 		u'空',
 		u'导弹脱靶时目标机速度（千米每小时）',
 		u'导弹脱靶时目标机高度（米）',
-		u'导弹脱靶时角度关系',
+		u'导弹脱靶时角度关系（度）',
 		u'导弹脱靶时高度关系（米）',
 	]
 
@@ -57,7 +57,7 @@ def gpsLocation(items):
 		z = float(items[3])
 	return [x + LongitudeOffset, y + LatitudeOffset, z / 1000.0]
 
-def findRecent(missileID, frame):
+def findRecent(missileID, frame, maxDis):
 	
 	missileLocation = []
 	fighterLocation = []
@@ -77,7 +77,7 @@ def findRecent(missileID, frame):
 			if recent < minRecent:
 				minRecent = recent
 				fighterID = items[0]
-	if minRecent == 100000.0 or minRecent > 1:
+	if minRecent == 100000.0 or minRecent > maxDis:
 		return []
 	else:
 		return [missileID, fighterID,]
@@ -122,15 +122,20 @@ def calculateAngle(x, y):
 	y[2] = 0
 	xy = gpsDistance(x, y)
 	xz = gpsDistance(x, z)
-	return negative * (asin(xz / xy) * 57.296 + offset)
-	
+	try:
+		result = negative * (asin(xz / xy) * 57.296 + offset)
+	except:
+		return False
+	return result
 
-def attackAngle(missile, way):
+def pitchAngle(missile, way):
 	
 	a = b = []
 	if way == 0:
 		points = getKeyFrame(missile[4])
-		for line in points[1]:
+		if len(points) < 3:
+			return False
+		for line in points[0]:
 			items = line[:-1].split(',')
 			if items[0] == missile[2]:
 				a = gpsLocation(items)
@@ -142,7 +147,9 @@ def attackAngle(missile, way):
 				break
 	elif len(missile) == 9:
 		points = getKeyFrame(missile[8])
-		for line in points[1]:
+		if len(points) < 3:
+			return False
+		for line in points[0]:
 			items = line[:-1].split(',')
 			if items[0] == missile[5]:
 				a = gpsLocation(items)
@@ -154,7 +161,11 @@ def attackAngle(missile, way):
 	if not len(a) or not len(b):
 		return False
 	recent = gpsDistance(a, b)
-	return asin((b[2] - a[2]) / recent) * 57.296
+	try:
+		speedAngle = asin((b[2] - a[2]) / recent) * 57.296
+	except:
+		return False
+	return speedAngle
 
 def angleRelation(missile, time, way, isHit):
 	
@@ -279,13 +290,21 @@ def calculateHight(missile, way, isHit):
 		for line in points[1]:
 			items = line[:-1].split(',')
 			if items[0] == missile[2]:
-				return float(items[3])
+				try:
+					result = float(items[3])
+				except:
+					return False
+				return result
 	elif len(missile) == 9 and missile[7] == isHit:
 		points = getKeyFrame(missile[8] - 2)
 		for line in points[1]:
 			items = line[:-1].split(',')
 			if items[0] == missile[5]:
-				return float(items[3])
+				try:
+					result = float(items[3])
+				except:
+					return False
+				return result
 	return False
 
 def calculateOverLoad(points, missile, way, ID):
@@ -304,8 +323,11 @@ def calculateOverLoad(points, missile, way, ID):
 	c = gpsDistance(keys[0], keys[2])
 	if c >= (a + b):
 		return 0
-	R = (a * b * c) / sqrt((a + b + c) * (a + b - c) * (b + c - a) * (a + c - b))
-	V = calculateSpeed(missile, 0, way, 0)
+	try:
+		R = (a * b * c) / sqrt((a + b + c) * (a + b - c) * (b + c - a) * (a + c - b))
+		V = calculateSpeed(missile, 0, way, 0)
+	except:
+		return False
 	
 	return (((V / 3.6) ** 2) / (abs(R) * 1000)) / 9.8
 
@@ -422,7 +444,10 @@ def acmiAnalyze(f):
 					if items[1] != '?':
 						missile = [tems[0], items[1]]
 					elif i != len(frames):
-						missile = findRecent(items[0], (frames[i] + frames[i + 1]))
+						try:
+							missile = findRecent(items[0], (frames[i] + frames[i + 1]), 0.1)
+						except:
+							pass
 					if len(missile) != 0:
 						missile.insert(1, items[5])
 						missile.append(getFighterName(missile[2]))
@@ -436,7 +461,10 @@ def acmiAnalyze(f):
 			elif line[0] == '!':
 				items = line[1:-1].split(',')
 				if items[1] in missilesID:
-					missile = findRecent(items[1], (frames[i - 1] + frames[i]))
+					try:
+						missile = findRecent(items[1], (frames[i - 1] + frames[i]), 1)
+					except:
+						pass
 					if len(missile) != 0:
 						isHit = False
 						for lline in (frames[i] + frames[i + 1]):
@@ -555,8 +583,6 @@ def acmiAnalyze(f):
 					for missile in missiles:
 						if isContinue(missile, fighterName, missileName):
 							value = angleRelation(missile, 0, 0, False)
-							if value > 145 or value < -145:
-								print str(missile)
 							setValue(missileData, value)
 				elif dataType == dataTypeKey[1]:
 					missileData = anCopyOf(heightDiffDivide)
@@ -604,13 +630,13 @@ def acmiAnalyze(f):
 					missileData = anCopyOf(angleDivide)
 					for missile in missiles:
 						if isContinue(missile, fighterName, missileName):
-							value = attackAngle(missile, 0)
+							value = pitchAngle(missile, 0)
 							setValue(missileData, value)
 				elif dataType == dataTypeKey[9]:
 					missileData = anCopyOf(angleDivide)
 					for missile in missiles:
 						if isContinue(missile, fighterName, missileName):
-							value = attackAngle(missile, 1)
+							value = pitchAngle(missile, 1)
 							setValue(missileData, value)
 				elif dataType == dataTypeKey[10]:
 					missileData = anCopyOf(distanceDivide)
@@ -729,6 +755,27 @@ def anCopyOf(divide):
 		copy.append(item[:])
 	return copy
 
+def data2text(data):
+	
+	text = ''
+	for dataType, typeData in data.items():
+		text += '%s\n' % dataType.encode('utf-8')
+		for fighterName, fighterData in typeData.items():
+			text += '  %s\n' % fighterName.encode('utf-8')
+			for missileName, missileData in fighterData.items():
+				text += '     %s: ' % missileName.encode('utf-8')
+				sum = 0.0
+				for unit in missileData:
+					sum += unit[1]
+				for i in range(len(missileData)):
+					if i == 0:
+						text += u"小于 %d: %d, %.2f%%; ".encode('utf-8') % (missileData[i][0], missileData[i][1], missileData[i][1] / sum * 100)
+					elif i == len(missileData) - 1:
+						text += u"大于 %d: %d, %.2f%%\n".encode('utf-8') % (missileData[i - 1][0], missileData[i][1], missileData[i][1] / sum * 100)
+					else:
+						text += "%d ~ %d: %d, %.2f%%; " % (missileData[i - 1][0], missileData[i][0], missileData[i][1], missileData[i][1] / sum * 100)
+	return text
+
 def main():
 	
 	if len(sys.argv) == 1:
@@ -756,12 +803,7 @@ def main():
 				hasHit = hasHit + 1
 	print '%d missiles find target and %d hit' % (hasTarget, hasHit)
 	
-	for dataType, typeData in data.items():
-		print '%s' % dataType.encode('utf-8')
-		for fighterName, fighterData in typeData.items():
-			print '  %s' % fighterName.encode('utf-8')
-			for missileName, missileData in fighterData.items():
-				print '     %s: %s' % (missileName.encode('utf-8'), str(missileData))
+	print data2text(data)
 	
 	f.close()
 

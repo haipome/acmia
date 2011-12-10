@@ -4,7 +4,7 @@
 import cPickle
 import os
 import sys
-from analyze import acmiAnalyze, dataTypeKey, fighterType, missileType
+from analyze import acmiAnalyze, dataTypeKey, fighterType, missileType, data2text
 from PyQt4 import QtCore, QtGui
 
 conf = 	{
@@ -13,7 +13,7 @@ conf = 	{
 		'cntStart' : 27,
 		'comboWidth' : 85,
 		'comboHeight' : 30,
-		'comboGap' : 10,
+		'comboGap' : 9,
 		'btnStart' : 63,
 		'btnWidth' : 180,
 		'btnHeight' : 35,
@@ -31,7 +31,7 @@ butMsg = [
 		u'导弹发射时真空速度统计',
 		u'导弹发射时马赫数统计',
 		u'导弹发射时过载数据统计',
-		u'导弹发射时攻角数据统计',
+		u'导弹发射时俯仰角数据统计',
 		u'导弹发射时相对距离统计',
 		u'导弹发射时滚转角统计',
 		u'命中时目标机高度速度统计',
@@ -92,8 +92,13 @@ class acmia(QtGui.QMainWindow):
 		fileOpen.setStatusTip(u'打开 ACMI 文件')
 		fileOpen.triggered.connect(self.openFile)
 		
+		resultSave = QtGui.QAction(QtGui.QIcon(''), u'输出结果', self)
+		resultSave.setStatusTip(u'将结果输出为文本')
+		resultSave.triggered.connect(self.result2txt)
+		
 		fileMenu = menubar.addMenu(u'文件')
 		fileMenu.addAction(fileOpen)
+		fileMenu.addAction(resultSave)
 		fileMenu.addSeparator()
 		fileMenu.addAction(exitAction)
 		
@@ -230,40 +235,75 @@ class acmia(QtGui.QMainWindow):
 			except:
 				QtGui.QMessageBox.warning(self, u'', u'清除记录失败')
 	
+	def result2txt(self):
+		
+		try:
+			f = open(resultFile, 'w+')
+			f.write(data2text(dataLog))
+			f.close()
+		except:
+			QtGui.QMessageBox.warning(self, u'', u'结果输出失败')
+			return
+		QtGui.QMessageBox.warning(self, u'', u'结果保存在文件 %s 中' % resultFile)
+	
 	def openFile(self):
 		
 		global fileHistory, dataLog
 		
-		if len(fileHistory) == 0:
-			lastDir = '/home'
-		else:
-			lastDir = os.path.dirname(fileHistory[-1])
-		
-		fname = str(QtGui.QFileDialog.getOpenFileName(self, u'选择文件',
-			lastDir, u"ACMi 文件(*.acmi)").toLocal8Bit())
-		if len(fname) == 0:
+		fnames = QtGui.QFileDialog.getOpenFileNames(self, u'按住ctrl可以选择多个文件',
+			'/home', u"ACMi 文件(*.acmi)")
+		fileNumber = len(fnames)
+		sucessOpenNumber = 0
+		sucessNumber = 0
+		existeceNumber = 0
+		hasError = 0
+		if fileNumber == 0:
 			return
-		try:
-			f = open(fname, 'r')
-		except:
-			QtGui.QMessageBox.warning(self, u'', u'文件打开失败')
-		f.seek(3)
-		
-		if fname not in fileHistory:
+		progress = QtGui.QProgressDialog(u"分析 ACMI 文件", u"取消", 0, fileNumber, self)
+		progress.setWindowModality(QtCore.Qt.WindowModal)
+		progress.setWindowTitle(u"数据分析")
+		progress.open()
+		for i in range(fileNumber):
+			progress.setLabelText(u"分析 ACMI 文件 %d/%d" % ((i + 1), fileNumber))
+			fname = str(fnames[i].toLocal8Bit())
+			if progress.wasCanceled():
+				break
+			
 			try:
-				fileHistory.append(fname)
-				analyzeData = acmiAnalyze(f)
-				f.close()
-				self.dataPlus(analyzeData, dataLog)
-				save(dataLog, logFile)
-				save(fileHistory, openFile)
-				weaponType = [fightersType, missilesType]
-				save(weaponType, weaponFile)
+				f = open(fname, 'r')
+			except:
+				continue
 			finally:
-				QtGui.QMessageBox.warning(self, u'', u'文件分析完毕')
-		else:
-			QtGui.QMessageBox.warning(self, u'', u'文件貌似已经打开过')
+				sucessOpenNumber += 1
+			f.seek(3)
+			if fname not in fileHistory:
+				try:
+					analyzeData = acmiAnalyze(f)
+				except:
+					hasError += 1
+				finally:
+					fileHistory.append(fname)
+					f.close()
+					self.dataPlus(analyzeData, dataLog)
+					save(dataLog, logFile)
+					save(fileHistory, openFile)
+					weaponType = [fightersType, missilesType]
+					save(weaponType, weaponFile)
+					sucessNumber += 1
+			else:
+				existeceNumber += 1
+			progress.setValue(i + 1)
 		
+		message = u"选择了 %d 个文件" % fileNumber
+		if existeceNumber != 0:
+			message += u", %d 个文件貌似已经分析过了" % existeceNumber
+		if sucessOpenNumber != fileNumber:
+			message += u", %d 个文件没有打开成功" % fileNumber - sucessNumber
+		if sucessNumber != 0:
+			message += u", %d 个文件分析成功" % sucessNumber
+		# if hasError != 0:
+		#	message += u", %d 个文件分析出错" % hasError
+		QtGui.QMessageBox.warning(self, u'', message)
 		self.paintRefresh()
 	
 	def paintRefresh(self):
@@ -436,6 +476,7 @@ class acmia(QtGui.QMainWindow):
 logFile = 'appdata.log'
 openFile = 'fileopen.log'
 weaponFile = 'weapontype.log'
+resultFile = 'result.txt'
 
 def initAcmia():
 	
