@@ -92,13 +92,8 @@ class acmia(QtGui.QMainWindow):
 		fileOpen.setStatusTip(u'打开 ACMI 文件')
 		fileOpen.triggered.connect(self.openFile)
 		
-		resultSave = QtGui.QAction(QtGui.QIcon(''), u'输出结果', self)
-		resultSave.setStatusTip(u'将结果输出为文本')
-		resultSave.triggered.connect(self.result2txt)
-		
 		fileMenu = menubar.addMenu(u'文件')
 		fileMenu.addAction(fileOpen)
-		fileMenu.addAction(resultSave)
 		fileMenu.addSeparator()
 		fileMenu.addAction(exitAction)
 		
@@ -106,7 +101,13 @@ class acmia(QtGui.QMainWindow):
 		clearLog.setStatusTip(u'清空所有历史记录')
 		clearLog.triggered.connect(self.clearLog)
 		
+		resultSave = QtGui.QAction(QtGui.QIcon(''), u'输出结果', self)
+		resultSave.setStatusTip(u'将结果输出为文本')
+		resultSave.triggered.connect(self.result2txt)
+		
 		editMenu = menubar.addMenu(u'编辑')
+		editMenu.addAction(resultSave)
+		editMenu.addSeparator()
 		editMenu.addAction(clearLog)
 		
 		aboutMsg = QtGui.QAction(QtGui.QIcon(''), u'关于软件', self)
@@ -263,18 +264,18 @@ class acmia(QtGui.QMainWindow):
 		progress.setWindowModality(QtCore.Qt.WindowModal)
 		progress.setWindowTitle(u"数据分析")
 		progress.open()
+		progress.setValue(0)
 		for i in range(fileNumber):
 			progress.setLabelText(u"分析 ACMI 文件 %d/%d" % ((i + 1), fileNumber))
+			progress.setValue(i)
 			fname = str(fnames[i].toLocal8Bit())
 			if progress.wasCanceled():
 				break
-			
 			try:
 				f = open(fname, 'r')
 			except:
 				continue
-			finally:
-				sucessOpenNumber += 1
+			sucessOpenNumber += 1
 			f.seek(3)
 			if fname not in fileHistory:
 				try:
@@ -292,7 +293,7 @@ class acmia(QtGui.QMainWindow):
 					sucessNumber += 1
 			else:
 				existeceNumber += 1
-			progress.setValue(i + 1)
+		progress.setValue(fileNumber)
 		
 		message = u"选择了 %d 个文件" % fileNumber
 		if existeceNumber != 0:
