@@ -14,11 +14,11 @@ conf = 	{
 		'comboWidth' : 85,
 		'comboHeight' : 30,
 		'comboGap' : 9,
-		'btnStart' : 63,
+		'btnStart' : 65,
 		'btnWidth' : 180,
-		'btnHeight' : 35,
+		'btnHeight' : 36,
 		'btnNumber' : 12,
-		'btnGap' : 5,
+		'btnGap' : 7,
 		'lineOut' : 5,
 		'lineWidth' : 40,
 		'lineHeight' : 25,
@@ -125,33 +125,19 @@ class acmia(QtGui.QMainWindow):
 		point4 = (conf['comboWidth'] + conf['comboGap'],
 			conf['btnStart'] + 12 * (conf['btnHeight'] + conf['btnGap']))
 		
-		global combo1, combo2, combo3, combo4
+		global combo1, combo2
 		combo1 = QtGui.QComboBox(self)
 		for name in fightersType:
 			combo1.addItem(name)
-		combo1.activated[str].connect(self.onActivated0)
+		combo1.activated[str].connect(self.onActivated1)
 		combo1.setGeometry(point1[0], point1[1],
 			conf['comboWidth'], conf['comboHeight'])
 		
 		combo2 = QtGui.QComboBox(self)
 		for name in missilesType:
 			combo2.addItem(name)
-		combo2.activated[str].connect(self.onActivated1)
+		combo2.activated[str].connect(self.onActivated2)
 		combo2.setGeometry(point2[0], point2[1],
-			conf['comboWidth'], conf['comboHeight'])
-		
-		combo3 = QtGui.QComboBox(self)
-		for name in fightersType:
-			combo3.addItem(name)
-		combo3.activated[str].connect(self.onActivated2)
-		combo3.setGeometry(point3[0], point3[1],
-			conf['comboWidth'], conf['comboHeight'])
-		
-		combo4 = QtGui.QComboBox(self)
-		for name in missilesType:
-			combo4.addItem(name)
-		combo4.activated[str].connect(self.onActivated3)
-		combo4.setGeometry(point4[0], point4[1],
 			conf['comboWidth'], conf['comboHeight'])
 	
 	def initButtons(self):
@@ -179,17 +165,28 @@ class acmia(QtGui.QMainWindow):
 		
 		self.paintRefresh()
 	
-	def onActivated0(self, text):
+	def onActivated1(self, text):
 		
-		global currentModles
+		global currentModles, missilesType, combo2, dataLog
 		
 		for i in range(len(fightersType)):
 			if QtCore.QString(fightersType[i]) == text:
 				currentModles[0] = fightersType[i]
 				break
+		if currentModles[1] == missilesType[0]:
+			missiles = []
+			missiles.append(missilesType[0])
+			combo2.clear()
+			combo2.addItem(missilesType[0])
+			for typeData in dataLog.values():
+				if typeData.has_key(currentModles[0]):
+					for missile in typeData[currentModles[0]].keys():
+						if missile not in missiles:
+							missiles.append(missile)
+							combo2.addItem(missile)
 		self.paintRefresh()
 		
-	def onActivated1(self, text):
+	def onActivated2(self, text):
 		
 		global currentModles
 		
@@ -197,26 +194,17 @@ class acmia(QtGui.QMainWindow):
 			if QtCore.QString(missilesType[i]) == text:
 				currentModles[1] = missilesType[i]
 				break
-		self.paintRefresh()
-		
-	def onActivated2(self, text):
-		
-		global currentModles
-		
-		for i in range(len(fightersType)):
-			if QtCore.QString(fightersType[i]) == text:
-				currentModles[2] = fightersType[i]
-				break
-		self.paintRefresh()
-		
-	def onActivated3(self, text):
-		
-		global currentModles
-		
-		for i in range(len(missilesType)):
-			if QtCore.QString(missilesType[i]) == text:
-				currentModles[3] = missilesType[i]
-				break
+		if currentModles[0] == fightersType[0]:
+			fighters = []
+			fighters.append(fightersType[0])
+			combo1.clear()
+			combo1.addItem(fightersType[0])
+			for typeData in dataLog.values():
+				for fighterName, fighterData in typeData.items():
+						if fighterData.has_key(currentModles[1]):
+							if fighterName not in fighters:
+								fighters.append(fighterName)
+								combo1.addItem(fighterName)
 		self.paintRefresh()
 	
 	def clearLog(self):
@@ -312,7 +300,7 @@ class acmia(QtGui.QMainWindow):
 		global datas, titiles, currentModles
 		
 		datas[0] = self.getData(titles[0], currentModles[0], currentModles[1])
-		datas[1] = self.getData(titles[1], currentModles[2], currentModles[3])
+		datas[1] = self.getData(titles[1], currentModles[0], currentModles[1])
 		self.update()
 	
 	def getData(self, title, fighter, missile):
@@ -338,14 +326,12 @@ class acmia(QtGui.QMainWindow):
 					if fighterName not in fightersType:
 						fightersType.append(fighterName)
 						combo1.addItem(fighterName)
-						combo3.addItem(fighterName)
 				for missileName, missileData in fighterData.items():
 					if missileName not in dataLog[dataType][fighterName].keys():
 						dataLog[dataType][fighterName][missileName] = []
 						if missileName not in missilesType:
 							missilesType.append(missileName)
 							combo2.addItem(missileName)
-							combo4.addItem(missileName)
 						for i in range(len(missileData)):
 							dataLog[dataType][fighterName][missileName].append(missileData[i])
 					else:
@@ -505,7 +491,7 @@ def initAcmia():
 		f.close()
 	fightersType = weaponType[0]
 	missilesType = weaponType[1]
-	currentModles = [fighterType[0], missileType[0], fighterType[0], missileType[0]]
+	currentModles = [fighterType[0], missileType[0]]
 	datas = [[], []]
 	titles = ['', '']
 

@@ -41,7 +41,7 @@ def gpsDistance(x, y):
 	roundDegree = 360.0
 	
 	length = abs(x[0] - y[0]) / roundDegree * 2 * PI * earthR 
-	width = abs(x[1] - y[1]) / roundDegree * 2 * PI * earthR * cos(x[0])
+	width = abs(x[1] - y[1]) / roundDegree * 2 * PI * earthR * cos(x[0] / (180 / PI))
 	height = abs(x[2] - y[2])
 	
 	return sqrt(width ** 2 + length ** 2 + height ** 2)
@@ -495,13 +495,13 @@ def acmiAnalyze(f):
 	
 	heightDiffDivide = [
 		[-4000, 0],
-		[-3000, 0],
 		[-2000, 0],
 		[-1000, 0],
+		[-500, 0],
 		[0, 0],
+		[500, 0],
 		[1000, 0],
 		[2000, 0],
-		[3000, 0],
 		[4000, 0],
 		[5000, 0],
 	]
